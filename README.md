@@ -1,6 +1,6 @@
 # bib2cv
 
-Convert a BibTeX file of publications into LaTeX `\item` entries for an academic CV.
+Convert a BibTeX file of publications into LaTeX `\item` entries for an academic CV. Optimized for astrophysicists.
 
 ## Installation
 
@@ -9,6 +9,7 @@ pip install -e .
 ```
 
 ## Usage
+First, you need to have a personal ADS library on [ADS](https://ui.adsabs.harvard.edu/). Then you can export the BibTeX file to a local file, say `pubs.bib`. To get a publication list in Latex for your CV, you can use the following command:
 
 ```bash
 # Grouped output (default: first-author, 2nd/3rd, other, misc)
