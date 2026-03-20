@@ -1,0 +1,2 @@
+[console_scripts]
+bib2cv = bib2cv.cli:main

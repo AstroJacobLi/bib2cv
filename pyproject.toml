@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bib2cv"
+version = "0.1.0"
+description = "Convert BibTeX publications to LaTeX CV entries"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Jiaxuan Li"}]
+dependencies = [
+    "bibtexparser>=1.4,<2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[project.scripts]
+bib2cv = "bib2cv.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

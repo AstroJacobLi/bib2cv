@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/bib2cv/__init__.py
+src/bib2cv/cli.py
+src/bib2cv/formatter.py
+src/bib2cv/journals.py
+src/bib2cv/parser.py
+src/bib2cv.egg-info/PKG-INFO
+src/bib2cv.egg-info/SOURCES.txt
+src/bib2cv.egg-info/dependency_links.txt
+src/bib2cv.egg-info/entry_points.txt
+src/bib2cv.egg-info/requires.txt
+src/bib2cv.egg-info/top_level.txt
+tests/test_formatter.py
+tests/test_parser.py

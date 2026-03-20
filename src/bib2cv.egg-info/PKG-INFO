@@ -1,0 +1,123 @@
+Metadata-Version: 2.4
+Name: bib2cv
+Version: 0.1.0
+Summary: Convert BibTeX publications to LaTeX CV entries
+Author: Jiaxuan Li
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: bibtexparser<2,>=1.4
+Provides-Extra: test
+Requires-Dist: pytest>=7.0; extra == "test"
+
+# bib2cv
+
+A lightweight Python package that converts BibTeX publications into LaTeX CV entries (`\item ...`), optimized for an academic astronomy CV workflow.
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+## Quick Start
+
+```bash
+# Basic usage — prints LaTeX \item entries to stdout
+bib2cv pubs.bib
+
+# Write to file
+bib2cv pubs.bib -o output.tex
+
+# With per-entry overrides (accepted/submitted status, journal)
+bib2cv pubs.bib --overrides overrides.json
+```
+
+## Features
+
+- **Author formatting**: `Last F.` / `Last F.~M.` style with non-breaking spaces
+- **Author bolding**: Automatically bolds your name (default: `Li, Jiaxuan`)
+- **Smart truncation**: When your position exceeds the threshold (default 5), shows first 4 authors + `et al. (including \textbf{Your Name})`
+- **Title links**: Wraps titles in `\href{}{}` using ADS URL > DOI > arXiv precedence
+- **Journal resolution**: Maps ADS BibTeX macros (`\apj`, `\apjl`, `\mnras`, ...) to CV-style abbreviations
+- **Status detection**: Automatically detects published / accepted / arXiv-only papers
+- **Reverse chronological sorting** by year, month, then title
+
+## Per-Entry Overrides
+
+Create a JSON file to override status or journal for specific entries:
+
+```json
+{
+    "2025arXiv250408032M": {
+        "status": "accepted",
+        "journal": "ApJL"
+    },
+    "2025arXiv250100001X": {
+        "status": "submitted",
+        "journal": "MNRAS"
+    }
+}
+```
+
+Supported `status` values: `"published"`, `"accepted"`, `"submitted"`, `"arxiv"`, `"in prep"`.
+
+### Status rendering
+
+| Status      | Has journal? | Output example                                    |
+|-------------|-------------|---------------------------------------------------|
+| `published` | yes         | `\textit{ApJL} 998, L24 (2026).`                 |
+| `accepted`  | yes         | `\textit{ApJL} accepted.`                         |
+| `submitted` | yes         | `\textit{ApJL} submitted.`                        |
+| `arxiv`     | no          | `arXiv:2501.00001.`                               |
+| `arxiv`     | yes (override) | `\textit{ApJL} submitted, arXiv:2501.00001.`  |
+
+## CLI Options
+
+```
+bib2cv INPUT.bib [-o OUTPUT] [--author "Last, First"] [--overrides FILE] [--max-position N] [--no-sort]
+```
+
+| Flag             | Default          | Description                                    |
+|------------------|------------------|------------------------------------------------|
+| `--author`       | `Li, Jiaxuan`    | Name to bold, in `Last, First` format          |
+| `--overrides`    | —                | JSON file for per-entry status/journal overrides|
+| `--max-position` | `5`              | Author position threshold for truncation       |
+| `--no-sort`      | off              | Disable reverse-chronological sorting          |
+| `-o`             | stdout           | Output file path                               |
+
+## Python API
+
+```python
+from bib2cv import parse_bibfile, format_entries
+from bib2cv.formatter import FormatterConfig
+
+entries = parse_bibfile("pubs.bib")
+cfg = FormatterConfig(
+    owner_last="Li",
+    owner_first="Jiaxuan",
+    overrides={"2025arXiv250408032M": {"status": "accepted", "journal": "ApJL"}},
+)
+print(format_entries(entries, cfg))
+```
+
+## Example Output
+
+```latex
+\item Ma Y., Greene J.~E., Setton D.~J., Goulding A.~D. et al. (including \textbf{Li J.}), \href{...}{Counting Little Red Dots...}, \textit{ApJ} 1000, 59 (2026).
+
+\item \textbf{Li J.}, Greene J.~E., Danieli S., Carlsten S.~G., Geha M., \href{...}{A Possible ``Too-Many-Satellites'' Problem...}, \textit{ApJL} 998, L24 (2026).
+
+\item Cheng S., \textbf{Li J.}, Yang E., \href{...}{Discovery of a Dwarf Planet Candidate...}, \textit{ApJL} 998, L6 (2026).
+```
+
+## Running Tests
+
+```bash
+pip install -e ".[test]"
+python -m pytest tests/ -v
+```
+
+## License
+
+MIT

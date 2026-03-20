@@ -1,0 +1,42 @@
+{
+    "2026arXiv260221280H": {
+        "description": "white paper for the Roman Cycle 1 observation"
+    },
+    "2025arXiv250408030L": {
+        "status": "accepted",
+        "journal": "ApJ"
+    },
+    "2025hst..prop18046L": {
+        "description": "HST Proposal (2025)"
+    },
+    "2024AAS...24326110L": {
+        "description": "AAS abstract (2024)"
+    },
+    "2024ngr..prop...78G": {
+        "description": "NASA Roman Proposal (2024)"
+    },
+    "2023mla..confE..20L": {
+        "description": "ICML ML4Astro workshop (2023)"
+    },
+    "2025MPEC....K...47C": {
+        "description": "Minor Planet Electronic Circulars (2025)"
+    },
+    "2023arXiv230611784H": {
+        "description": "white paper for the Roman Core Community Survey"
+    },
+    "2023zndo...8126529L": {
+        "description": "software"
+    },
+    "2023zndo...7966831L": {
+        "skip": true
+    },
+    "2023zndo...7847258L": {
+        "skip": true
+    },
+    "2023zndo...7839250L": {
+        "skip": true
+    },
+    "2026AAS...24714504L": {
+        "description": "AAS abstract (2026)"
+    }
+}
