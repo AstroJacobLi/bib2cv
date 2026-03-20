@@ -22,6 +22,20 @@ bib2cv pubs.bib --overrides overrides.json -o output.tex
 bib2cv pubs.bib --no-group
 ```
 
+Then your `output.tex` will be populated with the publication list. You can then include it in your CV using `\input{output.tex}`.
+
+Example:
+```latex
+\item \textbf{Li J.}, Greene J.~E., Danieli S., Carlsten S.~G., Geha M., \href{https://ui.adsabs.harvard.edu/abs/2026ApJ...998L..24L}{A Possible ``Too-many-satellites'' Problem in the Isolated Dwarf Galaxy DDO 161}, \textit{ApJL} 998, L24 (2026).
+
+\item Carlsten S., \textbf{Li J.}, Greene J., Drlica-Wagner A., Danieli S., \href{https://ui.adsabs.harvard.edu/abs/2026arXiv260216778C}{ELVES-Field: Isolated Dwarf Galaxy Quenched Fractions Rise Below $M_* \approx 10^7$ $M_\odot$}, arXiv:2602.16778.
+
+\item Ma Y., Greene J.~E., Setton D.~J., Goulding A.~D. et al. (including \textbf{Li J.}), \href{https://ui.adsabs.harvard.edu/abs/2026ApJ..1000...59M}{Counting Little Red Dots at z < 4 with Ground-based Surveys and Spectroscopic Follow-up}, \textit{ApJ} 1000, 59 (2026).
+
+\item \textbf{Li J.}, Carlsten S., Danieli S., Greene J.~E., Lin X., Savino A., Telford G., \href{https://ui.adsabs.harvard.edu/abs/2025hst..prop18046L}{Testing the Mass Threshold of Reionization-Quenching with Isolated Dwarf Galaxy Hedgehog}, HST Proposal (2025).
+```
+
+
 ### CLI Options
 
 | Flag             | Default        | Description                                    |
