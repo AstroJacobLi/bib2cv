@@ -236,9 +236,22 @@ def _clean_title(title: str) -> str:
     return t
 
 
-def format_title(entry: dict) -> str:
-    """Format the title, wrapping in \\href if a link is available."""
-    title = _clean_title(entry.get("title", ""))
+def format_title(entry: dict, cfg: FormatterConfig | None = None) -> str:
+    """Format the title, wrapping in \\href if a link is available.
+
+    If a ``"title"`` override exists in *cfg*, it is used instead of
+    the BibTeX title (useful for software entries, etc.).
+    """
+    if cfg is not None:
+        key = entry.get("ID", "")
+        title_override = cfg.overrides.get(key, {}).get("title")
+        if title_override:
+            title = title_override
+        else:
+            title = _clean_title(entry.get("title", ""))
+    else:
+        title = _clean_title(entry.get("title", ""))
+
     link = _get_link(entry)
     if link:
         return rf"\href{{{link}}}{{{title}}}"
@@ -364,7 +377,7 @@ def format_entry(
     by the ``"description"`` override (if set), or omitted entirely.
     """
     authors = format_authors(entry.get("author", ""), cfg)
-    title = format_title(entry)
+    title = format_title(entry, cfg)
 
     if skip_status:
         key = entry.get("ID", "")

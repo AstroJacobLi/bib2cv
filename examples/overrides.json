@@ -25,7 +25,8 @@
         "description": "white paper for the Roman Core Community Survey"
     },
     "2023zndo...8126529L": {
-        "description": "software"
+        "description": "software",
+        "title": "\\texttt{smplotlib}: A Matplotlib template for SuperMongo style"
     },
     "2023zndo...7966831L": {
         "skip": true
