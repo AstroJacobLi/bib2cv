@@ -7,8 +7,10 @@ import pytest
 from bib2cv.formatter import (
     FormatterConfig,
     _format_author_name,
+    _is_misc_entry,
     _is_owner,
     _owner_formatted,
+    _strip_braces,
     format_authors,
     format_entry,
     format_publication_info,
@@ -36,6 +38,23 @@ class TestFormatAuthorName:
         # Collaboration names, etc.
         assert _format_author_name("SDSS Collaboration") == "SDSS Collaboration"
 
+    def test_preserves_letter_accent_macros(self):
+        """Braces around \\k{a}, \\.z etc. must survive so LaTeX compiles."""
+        # Drążkowska: \k{a} (ogonek) and \.z (dot). Stripping braces would
+        # yield the undefined control word \ka.
+        result = _format_author_name(r"{Dr{\k{a}}{\.z}kowska}, Joanna")
+        assert result == r"Dr{\k{a}}{\.z}kowska J."
+        assert r"\ka" not in result
+
+    def test_preserves_symbol_accents(self):
+        assert _format_author_name(r"{M{\"u}ller-Bravo}, Tom{\'a}s E.") == (
+            r"M{\"u}ller-Bravo T.~E."
+        )
+
+    def test_strips_protective_braces(self):
+        assert _strip_braces("{Chen}") == "Chen"
+        assert _strip_braces("{Gal-Yam}") == "Gal-Yam"
+
 
 # ===================================================================
 # Owner detection
@@ -54,6 +73,22 @@ class TestOwnerDetection:
 
     def test_no_match_different_first(self):
         assert _is_owner("Li, Someone", self.cfg) is False
+
+    def test_matches_initial_form(self):
+        """Owner spelled out in config, initial in the entry (ADS variance)."""
+        assert _is_owner("Li, J.", self.cfg) is True
+
+    def test_matches_when_owner_given_as_initial(self):
+        """Symmetric: owner configured as an initial, entry spelled out."""
+        cfg = FormatterConfig(owner_last="Li", owner_first="J.")
+        assert _is_owner("Li, Jiaxuan", cfg) is True
+
+    def test_initial_does_not_match_different_letter(self):
+        assert _is_owner("Li, K.", self.cfg) is False
+
+    def test_two_full_names_must_match_exactly(self):
+        """An initial may match a full name, but two full names may not differ."""
+        assert _is_owner("Li, Jason", self.cfg) is False
 
     def test_owner_formatted(self):
         assert _owner_formatted(self.cfg) == r"\textbf{Li J.}"
@@ -105,6 +140,52 @@ class TestFormatAuthors:
         result = format_authors(authors, self.cfg)
         assert "et al." not in result
         assert "Geha M." in result
+
+    def test_max_authors_first_author(self):
+        """First author + long list → first N names, plain 'et al.'."""
+        cfg = FormatterConfig(max_authors=5)
+        authors = (
+            "Li, Jiaxuan and Greene, Jenny E. and Danieli, Shany and "
+            "Carlsten, Scott G. and Geha, Marla and Kado-Fong, Erin and "
+            "Goulding, Andy D."
+        )
+        result = format_authors(authors, cfg)
+        assert result.startswith(r"\textbf{Li J.}")
+        assert result.endswith(" et al.")
+        # Plain 'et al.'—owner is already shown, so no '(including ...)'.
+        assert "including" not in result
+        assert "Geha M." in result  # 5th author is within the cap
+        assert "Kado-Fong" not in result  # 6th author is dropped
+
+    def test_max_authors_no_truncation_when_short(self):
+        """List no longer than the cap → untouched."""
+        cfg = FormatterConfig(max_authors=5)
+        authors = "Li, Jiaxuan and Greene, Jenny E. and Danieli, Shany"
+        result = format_authors(authors, cfg)
+        assert "et al." not in result
+        assert "Danieli S." in result
+
+    def test_max_authors_keeps_owner_visible(self):
+        """Owner past the cap but not 'late' → still noted via 'including'."""
+        cfg = FormatterConfig(max_authors=3, max_position_before_truncation=10)
+        authors = (
+            "Greene, Jenny E. and Danieli, Shany and Carlsten, Scott G. and "
+            "Geha, Marla and Li, Jiaxuan"
+        )
+        result = format_authors(authors, cfg)
+        assert result.endswith(f" et al. (including {_owner_formatted(cfg)})")
+        assert "Geha M." not in result  # beyond the cap
+
+    def test_max_authors_none_shows_all(self):
+        """Default (no cap) leaves long first-author lists intact."""
+        cfg = FormatterConfig()  # max_authors defaults to None
+        authors = (
+            "Li, Jiaxuan and Greene, Jenny E. and Danieli, Shany and "
+            "Carlsten, Scott G. and Geha, Marla and Kado-Fong, Erin"
+        )
+        result = format_authors(authors, cfg)
+        assert "et al." not in result
+        assert "Kado-Fong E." in result
 
 
 # ===================================================================
@@ -267,3 +348,27 @@ class TestSorting:
         assert "A" in lines[0]
         assert "C" in lines[1]
         assert "B" in lines[2]
+
+
+# ===================================================================
+# Misc-entry classification
+# ===================================================================
+
+
+class TestMiscClassification:
+    def test_aas_meeting_abstract_is_misc(self):
+        """AAS abstract bibcodes (AAS right after the year) are misc."""
+        assert _is_misc_entry({"ID": "2024AAS...24326110L"}) is True
+
+    def test_rnaas_is_not_misc(self):
+        """RNAAS is a real journal, not an AAS meeting abstract."""
+        assert _is_misc_entry({"ID": "2017RNAAS...1...28P"}) is False
+
+    def test_proposal_is_misc(self):
+        assert _is_misc_entry({"ID": "2025hst..prop18046L"}) is True
+
+    def test_regular_article_is_not_misc(self):
+        assert _is_misc_entry({"ID": "2024Natur.625..253C"}) is False
+
+    def test_misc_entry_type_is_misc(self):
+        assert _is_misc_entry({"ID": "whatever", "ENTRYTYPE": "software"}) is True

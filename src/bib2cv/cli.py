@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .formatter import FormatterConfig, format_entries, format_entries_grouped
+from .formatter import (
+    LATEX_PREAMBLE,
+    FormatterConfig,
+    format_entries,
+    format_entries_grouped,
+)
 from .parser import parse_bibfile
 
 
@@ -47,9 +52,28 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     parser.add_argument(
+        "--max-authors",
+        type=int,
+        default=None,
+        help=(
+            "Cap the number of authors shown per entry; longer lists "
+            "are truncated to this many names followed by 'et al.' "
+            "(default: no cap)."
+        ),
+    )
+    parser.add_argument(
         "--no-sort",
         action="store_true",
         help="Disable reverse-chronological sorting.",
+    )
+    parser.add_argument(
+        "--preamble",
+        action="store_true",
+        help=(
+            "Prepend a LaTeX package/colour preamble block (hyperref, "
+            "fontenc, a U+2500 dash fix, link colours, etc.). Meant to "
+            "be \\input into your CV's preamble; does not compile alone."
+        ),
     )
     parser.add_argument(
         "--no-group",
@@ -76,12 +100,14 @@ def main(argv: list[str] | None = None) -> None:
             owner_last=owner_last,
             owner_first=owner_first,
             max_position_before_truncation=args.max_position,
+            max_authors=args.max_authors,
         )
     else:
         cfg = FormatterConfig(
             owner_last=owner_last,
             owner_first=owner_first,
             max_position_before_truncation=args.max_position,
+            max_authors=args.max_authors,
         )
 
     # Parse and format
@@ -90,6 +116,9 @@ def main(argv: list[str] | None = None) -> None:
         output = format_entries(entries, cfg=cfg, sort=not args.no_sort)
     else:
         output = format_entries_grouped(entries, cfg=cfg)
+
+    if args.preamble:
+        output = LATEX_PREAMBLE + "\n\n" + output
 
     # Write
     if args.output:

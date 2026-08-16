@@ -10,6 +10,30 @@ from typing import Optional
 from .journals import resolve_journal
 
 # ---------------------------------------------------------------------------
+# LaTeX preamble
+# ---------------------------------------------------------------------------
+
+# Package/colour block that can optionally be prepended to the output
+# (via the ``--preamble`` CLI flag). These are preamble-only commands, so
+# the result is meant to be ``\input`` into the preamble of your own CV
+# document, not compiled on its own. ``\DeclareUnicodeCharacter{2500}{---}``
+# guards against the U+2500 box-drawing dash that ADS sometimes emits in
+# titles (e.g. "SN 2022oqm─A Ca-rich ...").
+LATEX_PREAMBLE = r"""\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{enumitem}
+\usepackage[utf8]{inputenc}
+\DeclareUnicodeCharacter{2500}{---}
+\RequirePackage{color,graphicx}
+\usepackage[usenames,dvipsnames]{xcolor}
+%Setup hyperref package, and colours for links
+\usepackage{hyperref}
+\definecolor{linkcolour}{rgb}{0,0.2,0.6}
+\hypersetup{colorlinks,breaklinks,urlcolor=linkcolour, linkcolor=linkcolour}"""
+
+
+# ---------------------------------------------------------------------------
 # Month helpers
 # ---------------------------------------------------------------------------
 
@@ -60,6 +84,11 @@ class FormatterConfig:
             Otherwise truncate.
         num_authors_when_truncated: Number of leading authors to show
             when the list is truncated (before ``et al.``).
+        max_authors: Hard cap on the number of authors displayed for a
+            single entry. When a list is longer than this, only the
+            leading ``max_authors`` names are shown, followed by
+            ``et al.`` (used mainly to shorten long first-author lists).
+            ``None`` disables the cap.
         overrides: Per-entry overrides keyed by BibTeX citation key.
             Each value is a dict that may contain:
             - ``"status"``: one of ``"published"``, ``"accepted"``,
@@ -71,6 +100,7 @@ class FormatterConfig:
     owner_first: str = "Jiaxuan"
     max_position_before_truncation: int = 5
     num_authors_when_truncated: int = 4
+    max_authors: Optional[int] = None
     overrides: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @classmethod
@@ -98,8 +128,47 @@ class FormatterConfig:
 
 
 def _strip_braces(s: str) -> str:
-    """Remove BibTeX protective braces from a string."""
-    return s.replace("{", "").replace("}", "")
+    """Remove BibTeX protective braces while preserving LaTeX accents.
+
+    Braces that merely protect capitalization (e.g. ``{Chen}``) are
+    removed, but a brace group beginning with a backslash command
+    (e.g. ``{\\k{a}}`` → ą, ``{\\.z}`` → ż, ``{\\"u}`` → ü) is kept
+    intact — stripping its braces would turn ``\\k{a}`` into the
+    undefined control word ``\\ka`` and break compilation.
+    """
+    result: list[str] = []
+    i, n = 0, len(s)
+    while i < n:
+        c = s[i]
+        if c == "{":
+            # Find the matching closing brace for this group.
+            depth, j = 1, i + 1
+            while j < n and depth:
+                if s[j] == "{":
+                    depth += 1
+                elif s[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            if j < n:  # balanced group s[i..j]
+                content = s[i + 1:j]
+                if content.startswith("\\"):
+                    # LaTeX command/accent group — keep verbatim.
+                    result.append(s[i:j + 1])
+                else:
+                    # Protective braces — drop them, recurse into content.
+                    result.append(_strip_braces(content))
+                i = j + 1
+            else:  # unbalanced; leave as-is
+                result.append(c)
+                i += 1
+        elif c == "}":
+            i += 1  # stray closing brace
+        else:
+            result.append(c)
+            i += 1
+    return "".join(result)
 
 
 def _format_author_name(name: str) -> str:
@@ -138,17 +207,42 @@ def _format_author_name(name: str) -> str:
         return f"{last} {'~'.join(initials)}"
 
 
+def _first_name_matches(entry_first: str, owner_first: str) -> bool:
+    """Compare two given-name tokens, letting an initial match a full name.
+
+    ADS BibTeX is inconsistent — the same person may appear as ``Ping``
+    in one entry and ``P.`` in another. So ``"P."`` matches ``"Ping"``
+    (and vice versa). When *both* names are spelled out, they must match
+    exactly (case-insensitive), so ``"Peter"`` does not match ``"Ping"``.
+    """
+    e = entry_first.rstrip(".").lower()
+    o = owner_first.rstrip(".").lower()
+    if not e or not o:
+        return False
+    # Both spelled out → require a full match.
+    if len(e) > 1 and len(o) > 1:
+        return e == o
+    # At least one is an initial → compare the leading letter only.
+    return e[0] == o[0]
+
+
 def _is_owner(name: str, cfg: FormatterConfig) -> bool:
-    """Check whether *name* (raw BibTeX form) matches the CV owner."""
+    """Check whether *name* (raw BibTeX form) matches the CV owner.
+
+    Matches on last name plus the first given name, tolerating the
+    initial-vs-spelled-out mismatch common in ADS exports (e.g. both
+    ``Chen, Ping`` and ``Chen, P.`` match owner ``Chen, Ping``).
+    """
     parts = [p.strip() for p in name.split(",", maxsplit=1)]
     if len(parts) < 2:
         return False
     last = _strip_braces(parts[0].strip())
     first_str = _strip_braces(parts[1].strip())
     first = first_str.split()[0] if first_str else ""
+    owner_first = cfg.owner_first.split()[0] if cfg.owner_first.split() else ""
     return (
         last.lower() == cfg.owner_last.lower()
-        and first.lower() == cfg.owner_first.lower()
+        and _first_name_matches(first, owner_first)
     )
 
 
@@ -184,6 +278,9 @@ def format_authors(author_field: str, cfg: FormatterConfig) -> str:
             formatted.append(_format_author_name(name))
 
     # Truncation logic
+    #
+    # Case 1: the owner is a minor author, appearing late in the list.
+    # Show a few leading authors and note that the owner is included.
     if (
         owner_pos is not None
         and owner_pos > cfg.max_position_before_truncation
@@ -192,6 +289,15 @@ def format_authors(author_field: str, cfg: FormatterConfig) -> str:
         n = cfg.num_authors_when_truncated
         truncated = formatted[:n]
         return ", ".join(truncated) + f" et al. (including {_owner_formatted(cfg)})"
+
+    # Case 2: the owner is a prominent author (e.g. first author) but the
+    # list is long. Cap the number of displayed authors and append
+    # ``et al.``. If the owner would fall past the cap, keep them visible.
+    if cfg.max_authors is not None and total > cfg.max_authors:
+        shown = formatted[: cfg.max_authors]
+        if owner_pos is not None and owner_pos > cfg.max_authors:
+            return ", ".join(shown) + f" et al. (including {_owner_formatted(cfg)})"
+        return ", ".join(shown) + " et al."
 
     return ", ".join(formatted)
 
@@ -460,9 +566,9 @@ def _owner_position(entry: dict, cfg: FormatterConfig) -> int | None:
     return None
 
 
-# Patterns in BibTeX keys that indicate misc entries (case-insensitive)
+# Substring patterns in BibTeX keys that indicate misc entries
+# (case-insensitive).
 _MISC_KEY_PATTERNS = (
-    "AAS",       # AAS meeting abstracts
     "prop",      # telescope proposals (HST, JWST, Roman, etc.)
     "mla..conf", # ML for Astrophysics conference
     "conf",      # other conferences
@@ -470,6 +576,12 @@ _MISC_KEY_PATTERNS = (
     "mpec",      # Minor Planet Electronic Circulars
     "zndo",      # Zenodo software releases
 )
+
+# AAS meeting abstracts have bibcodes like ``2024AAS...24326110L`` — the
+# journal field ``AAS`` sits right after the 4-digit year. Anchoring here
+# avoids matching real journals whose code merely *contains* "AAS", most
+# notably RNAAS (Research Notes of the AAS), e.g. ``2017RNAAS...1...28P``.
+_AAS_ABSTRACT_KEY = re.compile(r"^\d{4}AAS", re.IGNORECASE)
 
 # Entry types that are always misc
 _MISC_ENTRY_TYPES = {"misc", "inproceedings", "software"}
@@ -480,14 +592,16 @@ def _is_misc_entry(entry: dict) -> bool:
 
     Detection uses both:
     - BibTeX entry type (``MISC``, ``INPROCEEDINGS``)
-    - Key patterns matching ADS conventions (e.g. ``AAS``, ``prop``,
-      ``conf`` in the BibTeX key)
+    - Key patterns matching ADS conventions (e.g. AAS meeting abstracts,
+      ``prop``, ``conf`` in the BibTeX key)
     """
     entry_type = entry.get("ENTRYTYPE", "").lower()
     if entry_type in _MISC_ENTRY_TYPES:
         return True
 
     key = entry.get("ID", "")
+    if _AAS_ABSTRACT_KEY.match(key):
+        return True
     for pattern in _MISC_KEY_PATTERNS:
         if pattern.lower() in key.lower():
             return True
