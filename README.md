@@ -20,7 +20,29 @@ bib2cv pubs.bib --overrides overrides.json -o output.tex
 
 # Flat list (no grouping)
 bib2cv pubs.bib --no-group
+
+# Cap long author lists at 5 names, and prepend a LaTeX preamble block
+bib2cv pubs.bib -o output.tex --max-authors 5 --preamble
 ```
+
+### Author-list truncation
+
+Two flags control how many co-authors are shown:
+
+- `--max-position N` truncates the list only when the owner sits *beyond*
+  position `N`. Earlier authors are dropped and the owner is kept visible via
+  `et al. (including \textbf{...})`.
+- `--max-authors N` caps *every* entry at `N` names followed by `et al.`,
+  regardless of the owner's position. When the owner falls past the cap, they
+  are still noted with `(including \textbf{...})`.
+
+### Preamble
+
+`--preamble` prepends a block of `\usepackage` lines (hyperref, `fontenc`,
+`lmodern`, `enumitem`, link colours) plus a `\DeclareUnicodeCharacter{2500}{---}`
+fix for the U+2500 box-drawing dash that ADS occasionally emits in titles. It is
+meant to be `\input` into your CV's preamble — it does not contain
+`\documentclass`/`\begin{document}` and does not compile on its own.
 
 Then your `output.tex` will be populated with the publication list. You can then include it in your CV using `\input{output.tex}`.
 
@@ -44,6 +66,8 @@ Example:
 | `--author`       | `Li, Jiaxuan`  | Name to bold, in `Last, First` format          |
 | `--overrides`    | —              | JSON file for per-entry overrides              |
 | `--max-position` | `5`            | Author position threshold for truncation       |
+| `--max-authors`  | no cap         | Cap authors shown per entry; longer lists become the first N names + `et al.` |
+| `--preamble`     | off            | Prepend a LaTeX package/colour preamble block  |
 | `--no-group`     | off            | Output a flat list instead of grouped sections |
 | `--no-sort`      | off            | Disable reverse-chronological sorting          |
 

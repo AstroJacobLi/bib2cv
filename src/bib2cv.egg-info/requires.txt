@@ -1,4 +1,0 @@
-bibtexparser<2,>=1.4
-
-[test]
-pytest>=7.0
