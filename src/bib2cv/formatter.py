@@ -94,6 +94,10 @@ class FormatterConfig:
             - ``"status"``: one of ``"published"``, ``"accepted"``,
               ``"submitted"``, ``"in prep"``
             - ``"journal"``: override journal label
+            - ``"co_first"``: mark equal-contribution authorship —
+              ``true`` daggers the owner, an integer ``N`` daggers the
+              leading ``N`` authors; either promotes the paper to the
+              first-author group.
     """
 
     owner_last: str = "Li"
@@ -125,6 +129,33 @@ class FormatterConfig:
 # ---------------------------------------------------------------------------
 # Author formatting
 # ---------------------------------------------------------------------------
+
+# Superscript symbol appended to co-first (equal-contribution) authors.
+# Add a matching footnote to your CV once, e.g.
+# ``$^{\dagger}$ denotes equal contribution``.
+CO_FIRST_MARKER = r"$^{\dagger}$"
+
+
+def _co_first_positions(
+    co_first, owner_pos: int | None, total: int
+) -> set[int]:
+    """Resolve which 1-indexed author positions are co-first authors.
+
+    *co_first* comes from the per-entry ``"co_first"`` override:
+    - ``True`` → mark only the owner (if present in the list).
+    - an integer ``N`` → mark the leading ``N`` authors (the common
+      "first N share equal contribution" case).
+    - falsy / ``None`` → mark nothing.
+    """
+    if not co_first:
+        return set()
+    if co_first is True:
+        return {owner_pos} if owner_pos is not None else set()
+    try:
+        n = int(co_first)
+    except (TypeError, ValueError):
+        return set()
+    return set(range(1, min(n, total) + 1))
 
 
 def _strip_braces(s: str) -> str:
@@ -253,10 +284,15 @@ def _owner_formatted(cfg: FormatterConfig) -> str:
     return rf"\textbf{{{cfg.owner_last} {init_str}}}"
 
 
-def format_authors(author_field: str, cfg: FormatterConfig) -> str:
+def format_authors(
+    author_field: str, cfg: FormatterConfig, co_first=None
+) -> str:
     """Format the author field into a CV-style author string.
 
-    Handles bolding of the owner and truncation per config.
+    Handles bolding of the owner and truncation per config. *co_first*
+    (from the per-entry ``"co_first"`` override) marks equal-contribution
+    authors with a superscript dagger: ``True`` marks the owner, an
+    integer ``N`` marks the leading ``N`` authors.
     """
     # Split on " and " (BibTeX convention)
     names = [n.strip() for n in author_field.split(" and ")]
@@ -269,13 +305,18 @@ def format_authors(author_field: str, cfg: FormatterConfig) -> str:
             owner_pos = i + 1
             break
 
+    mark_positions = _co_first_positions(co_first, owner_pos, total)
+
     # Format each name
     formatted: list[str] = []
-    for name in names:
+    for i, name in enumerate(names):
         if _is_owner(name, cfg):
-            formatted.append(_owner_formatted(cfg))
+            rendered = _owner_formatted(cfg)
         else:
-            formatted.append(_format_author_name(name))
+            rendered = _format_author_name(name)
+        if (i + 1) in mark_positions:
+            rendered += CO_FIRST_MARKER
+        formatted.append(rendered)
 
     # Truncation logic
     #
@@ -482,11 +523,12 @@ def format_entry(
     If *skip_status* is True, the trailing publication-info is replaced
     by the ``"description"`` override (if set), or omitted entirely.
     """
-    authors = format_authors(entry.get("author", ""), cfg)
+    key = entry.get("ID", "")
+    co_first = cfg.overrides.get(key, {}).get("co_first")
+    authors = format_authors(entry.get("author", ""), cfg, co_first=co_first)
     title = format_title(entry, cfg)
 
     if skip_status:
-        key = entry.get("ID", "")
         desc = cfg.overrides.get(key, {}).get("description", "")
         eprint = entry.get("eprint", "").strip()
         if desc and eprint:
@@ -669,7 +711,9 @@ def format_entries_grouped(
             continue
 
         pos = _owner_position(entry, cfg)
-        if pos == 1:
+        # A co-first author paper counts as first-author, even if the
+        # owner is listed 2nd/3rd.
+        if pos == 1 or entry_overrides.get("co_first"):
             first.append(entry)
         elif pos is not None and pos <= 3:
             second_third.append(entry)

@@ -86,6 +86,9 @@ A JSON file mapping BibTeX keys to per-entry overrides:
     },
     "2024AAS...24326110L": {
         "description": "AAS abstract (2024)"
+    },
+    "2024ApJ...962..109I": {
+        "co_first": 2
     }
 }
 ```
@@ -95,8 +98,23 @@ A JSON file mapping BibTeX keys to per-entry overrides:
 - `"status"` — force status: `"published"`, `"accepted"`, `"submitted"`, `"arxiv"`, `"in prep"`
 - `"journal"` — override the journal name (e.g., `"ApJ"`, `"ApJL"`)
 - `"description"` — routes the entry to the **misc** group with a custom label (e.g., proposals, abstracts, white papers). ArXiv numbers are appended automatically when available.
+- `"co_first"` — mark equal (co-first) authorship. Use `true` to dagger just your own name, or an integer `N` to dagger the leading `N` authors (the usual case where the first few authors share first authorship). Either way, the paper is promoted to the **first-author** group even when you are listed 2nd/3rd.
 
 For `accepted` and `submitted` entries, the arXiv number is shown automatically when present in the BibTeX.
+
+### Co-first authorship
+
+`"co_first"` appends a superscript dagger (`$^{\dagger}$`) to the marked names:
+
+```latex
+\item Irani I.$^{\dagger}$, \textbf{Chen P.}$^{\dagger}$, Morag J. et al., \href{...}{...}, \textit{ApJ} 962, 109 (2024).
+```
+
+Add the matching footnote once in your CV, e.g.:
+
+```latex
+$^{\dagger}$ denotes equal contribution.
+```
 
 ## Misc entries
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from bib2cv.formatter import (
+    CO_FIRST_MARKER,
     FormatterConfig,
     _format_author_name,
     _is_misc_entry,
@@ -13,6 +14,7 @@ from bib2cv.formatter import (
     _strip_braces,
     format_authors,
     format_entry,
+    format_entries_grouped,
     format_publication_info,
     format_title,
     format_entries,
@@ -372,3 +374,75 @@ class TestMiscClassification:
 
     def test_misc_entry_type_is_misc(self):
         assert _is_misc_entry({"ID": "whatever", "ENTRYTYPE": "software"}) is True
+
+
+# ===================================================================
+# Co-first authorship
+# ===================================================================
+
+
+class TestCoFirstAuthor:
+    def setup_method(self):
+        self.cfg = FormatterConfig()
+
+    def test_true_marks_owner_only(self):
+        """co_first=True daggers the owner and no one else."""
+        authors = "Irani, Ido and Li, Jiaxuan and Morag, Jonathan"
+        result = format_authors(authors, self.cfg, co_first=True)
+        assert r"\textbf{Li J.}" + CO_FIRST_MARKER in result
+        assert "Irani I." + CO_FIRST_MARKER not in result
+
+    def test_true_with_owner_absent_marks_nothing(self):
+        authors = "Irani, Ido and Morag, Jonathan"
+        result = format_authors(authors, self.cfg, co_first=True)
+        assert CO_FIRST_MARKER not in result
+
+    def test_integer_marks_leading_n(self):
+        """co_first=2 daggers the first two authors (incl. the owner)."""
+        authors = "Irani, Ido and Li, Jiaxuan and Morag, Jonathan"
+        result = format_authors(authors, self.cfg, co_first=2)
+        assert "Irani I." + CO_FIRST_MARKER in result
+        assert r"\textbf{Li J.}" + CO_FIRST_MARKER in result
+        assert "Morag J." + CO_FIRST_MARKER not in result
+
+    def test_integer_capped_at_total(self):
+        authors = "Irani, Ido and Li, Jiaxuan"
+        result = format_authors(authors, self.cfg, co_first=5)
+        assert "Irani I." + CO_FIRST_MARKER in result
+        assert r"\textbf{Li J.}" + CO_FIRST_MARKER in result
+
+    def test_none_marks_nothing(self):
+        authors = "Irani, Ido and Li, Jiaxuan and Morag, Jonathan"
+        result = format_authors(authors, self.cfg, co_first=None)
+        assert CO_FIRST_MARKER not in result
+
+    def test_marker_via_override_in_format_entry(self):
+        cfg = FormatterConfig(overrides={"k": {"co_first": 2}})
+        entry = {
+            "ID": "k",
+            "author": "Irani, Ido and Li, Jiaxuan and Morag, Jonathan",
+            "title": "{A Title}",
+            "journal": r"\apj",
+            "volume": "962",
+            "eid": "109",
+            "year": "2024",
+        }
+        result = format_entry(entry, cfg)
+        assert "Irani I." + CO_FIRST_MARKER in result
+        assert r"\textbf{Li J.}" + CO_FIRST_MARKER in result
+
+    def test_co_first_promoted_to_first_group(self):
+        """Owner listed 2nd, but co_first → lands in first-author group."""
+        cfg = FormatterConfig(overrides={"k": {"co_first": 2}})
+        entries = [{
+            "ID": "k",
+            "author": "Irani, Ido and Li, Jiaxuan and Morag, Jonathan",
+            "title": "{A Title}",
+            "journal": r"\apj",
+            "volume": "962",
+            "eid": "109",
+            "year": "2024",
+        }]
+        output = format_entries_grouped(entries, cfg)
+        assert "First-author" in output
+        assert "Second/third-author" not in output
