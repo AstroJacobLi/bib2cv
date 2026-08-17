@@ -133,6 +133,21 @@ class TestFormatAuthors:
         # Should only show first 4 names
         assert "Annunziatella" not in result
 
+    def test_no_double_owner_when_shown_in_slice(self):
+        """Owner past max_position but within the shown slice → no double listing."""
+        # max_position=3, owner at position 4, num_authors_when_truncated=4.
+        # The owner is the 4th shown name, so "(including ...)" must NOT
+        # be appended.
+        cfg = FormatterConfig(max_position_before_truncation=3)
+        authors = (
+            "Hinkle, John T. and Liu, Chang and Miller, Adam A. and "
+            "Li, Jiaxuan and Payne, Alexander and Auchettl, Katie"
+        )
+        result = format_authors(authors, cfg)
+        assert result.count(r"\textbf{Li J.}") == 1
+        assert "including" not in result
+        assert result.endswith(" et al.")
+
     def test_no_truncation_at_position_5(self):
         """Owner at position 5 → full list."""
         authors = (

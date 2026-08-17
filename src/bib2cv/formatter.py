@@ -329,6 +329,10 @@ def format_authors(
     ):
         n = cfg.num_authors_when_truncated
         truncated = formatted[:n]
+        # If the owner already appears within the shown slice, don't also
+        # append "(including ...)" — that would list them twice.
+        if owner_pos <= n:
+            return ", ".join(truncated) + " et al."
         return ", ".join(truncated) + f" et al. (including {_owner_formatted(cfg)})"
 
     # Case 2: the owner is a prominent author (e.g. first author) but the
