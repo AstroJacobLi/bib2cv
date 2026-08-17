@@ -148,6 +148,33 @@ class TestFormatAuthors:
         assert "including" not in result
         assert result.endswith(" et al.")
 
+    def test_shows_up_to_max_authors_when_owner_visible(self):
+        """Owner just past max_position but within max_authors → show up to the cap."""
+        # max_position=3, owner at #4, max_authors=5: the 5th author should
+        # still appear (Case 1 must honour the cap, not stop at 4).
+        cfg = FormatterConfig(max_position_before_truncation=3, max_authors=5)
+        authors = (
+            "Hinkle, John T. and Liu, Chang and Miller, Adam A. and "
+            "Li, Jiaxuan and Payne, Alexander and Auchettl, Katie"
+        )
+        result = format_authors(authors, cfg)
+        assert result.count(r"\textbf{Li J.}") == 1
+        assert "including" not in result
+        assert "Payne A." in result       # 5th author now shown
+        assert "Auchettl" not in result   # 6th dropped
+        assert result.endswith(" et al.")
+
+    def test_no_phantom_et_al_when_all_fit(self):
+        """Owner past max_position but whole list fits the cap → no 'et al.'."""
+        cfg = FormatterConfig(max_position_before_truncation=3, max_authors=5)
+        authors = (
+            "Hinkle, John T. and Liu, Chang and Miller, Adam A. and Li, Jiaxuan"
+        )
+        result = format_authors(authors, cfg)
+        assert "et al." not in result
+        assert "including" not in result
+        assert "Li J." in result
+
     def test_no_truncation_at_position_5(self):
         """Owner at position 5 → full list."""
         authors = (

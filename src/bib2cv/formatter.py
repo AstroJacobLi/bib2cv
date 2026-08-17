@@ -327,7 +327,18 @@ def format_authors(
         and owner_pos > cfg.max_position_before_truncation
         and total > cfg.max_position_before_truncation
     ):
-        n = cfg.num_authors_when_truncated
+        # Show up to the display cap (``max_authors``) when it is set,
+        # otherwise the default leading count. Honouring the cap here keeps
+        # the owner — and any co-authors up to the cap — visible when the
+        # owner sits just past ``max_position`` but within the cap.
+        n = (
+            cfg.max_authors
+            if cfg.max_authors is not None
+            else cfg.num_authors_when_truncated
+        )
+        if total <= n:
+            # Everything fits within the cap; nothing to truncate.
+            return ", ".join(formatted)
         truncated = formatted[:n]
         # If the owner already appears within the shown slice, don't also
         # append "(including ...)" — that would list them twice.
