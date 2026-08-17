@@ -87,7 +87,7 @@ A JSON file mapping BibTeX keys to per-entry overrides:
     "2024AAS...24326110L": {
         "description": "AAS abstract (2024)"
     },
-    "2024ApJ...962..109I": {
+    "2026arXiv260216778C": {
         "co_first": 2
     }
 }
@@ -107,7 +107,7 @@ For `accepted` and `submitted` entries, the arXiv number is shown automatically 
 `"co_first"` appends a superscript dagger (`$^{\dagger}$`) to the marked names:
 
 ```latex
-\item Irani I.$^{\dagger}$, \textbf{Chen P.}$^{\dagger}$, Morag J. et al., \href{...}{...}, \textit{ApJ} 962, 109 (2024).
+\item Carlsten S.$^{\dagger}$, \textbf{Li J.}$^{\dagger}$, et al., \href{...}{...}, \textit{ApJ} 123, 345 (2026).
 ```
 
 Add the matching footnote once in your CV, e.g.:
