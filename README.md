@@ -13,16 +13,16 @@ First, you need to have a personal ADS library on [ADS](https://ui.adsabs.harvar
 
 ```bash
 # Grouped output (default: first-author, 2nd/3rd, other, misc)
-bib2cv pubs.bib -o output.tex
+bib2cv pubs.bib -o output.tex --author "Li, Jiaxuan" --max-position 5 --max-authors 5
 
 # With per-entry overrides
-bib2cv pubs.bib --overrides overrides.json -o output.tex
+bib2cv pubs.bib --overrides overrides.json -o output.tex --author "Li, Jiaxuan"
 
 # Flat list (no grouping)
-bib2cv pubs.bib --no-group
+bib2cv pubs.bib --no-group --author "Li, Jiaxuan"
 
 # Cap long author lists at 5 names, and prepend a LaTeX preamble block
-bib2cv pubs.bib -o output.tex --max-authors 5 --preamble
+bib2cv pubs.bib -o output.tex --max-authors 5 --preamble --author "Li, Jiaxuan"
 ```
 
 ### Author-list truncation
